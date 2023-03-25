@@ -1,26 +1,27 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/nickjameswebb/cartoviz/pkg/cmd"
 	"github.com/nickjameswebb/cartoviz/pkg/types"
 	"github.com/spf13/pflag"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 func main() {
 	flags := pflag.NewFlagSet("cartoviz", pflag.ExitOnError)
 	pflag.CommandLine = flags
 
-	types.AddToScheme(scheme.Scheme)
+	scheme := runtime.NewScheme()
+	types.AddToScheme(scheme)
 
-	root := cmd.NewCmdViz(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
+	// TODO: better way to pass scheme
+	root := cmd.NewCmdViz(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}, scheme)
 	if err := root.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "cartoviz failed: %v\n", err)
+		// error printed by cobra, no need to do so here
 		os.Exit(1)
 	}
 }

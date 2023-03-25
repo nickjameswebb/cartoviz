@@ -7,4 +7,4 @@ install:
 
 .PHONY: smoke
 smoke: install
-	kubectl cartoviz
+	kubectl cartoviz source-to-url && open graph.png

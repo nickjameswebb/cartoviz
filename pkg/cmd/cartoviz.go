@@ -17,68 +17,41 @@ limitations under the License.
 package cmd
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/vmware-tanzu/cartographer/pkg/apis/v1alpha1"
 
+	"github.com/nickjameswebb/cartoviz/pkg/viz"
+
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/cli-runtime/pkg/resource"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
 )
 
-func NewCmdViz(streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdViz(streams genericclioptions.IOStreams, scheme *runtime.Scheme) *cobra.Command {
 	configFlags := genericclioptions.NewConfigFlags(true)
 
 	cmd := &cobra.Command{
-		Use:          "cartoviz",
-		Short:        "Visualize a Cartographer Supply Chain",
-		Example:      "TODO",
-		SilenceUsage: true,
+		Use:     "cartoviz",
+		Short:   "Visualize a Cartographer Supply Chain",
+		Example: "TODO",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
-			config, err := configFlags.ToRESTConfig()
-			if err != nil {
-				return fmt.Errorf("failed to get rest config: %w", err)
-			}
-			config.GroupVersion = &v1alpha1.SchemeGroupVersion
-			config.APIPath = "/apis"
-			config.ContentType = runtime.ContentTypeJSON
-			config.NegotiatedSerializer = serializer.NewCodecFactory(scheme.Scheme)
+			supplyChainName := args[0]
 
-			client, err := rest.RESTClientFor(config)
-			if err != nil {
-				return fmt.Errorf("failed to create client: %w", err)
-			}
+			builder := resource.NewBuilder(configFlags)
 
-			result := v1alpha1.ClusterSupplyChain{}
-			err = client.
-				Get().
-				Resource("clustersupplychains").
-				Name("source-to-url").
-				Do(context.TODO()).
-				Into(&result)
+			obj, err := builder.
+				WithScheme(scheme, scheme.PrioritizedVersionsAllGroups()...).
+				ResourceNames("clustersupplychain", supplyChainName).
+				Do().
+				Object()
 			if err != nil {
-				return fmt.Errorf("failed to get supply chain: %w", err)
+				return err
 			}
 
-			fmt.Println(result)
-
-			return nil
-			// if err := o.Complete(c, args); err != nil {
-			// 	return err
-			// }
-			// if err := o.Validate(); err != nil {
-			// 	return err
-			// }
-			// if err := o.Run(); err != nil {
-			// 	return err
-			// }
-
-			// return nil
+			supplyChain := obj.(*v1alpha1.ClusterSupplyChain)
+			return viz.VisualizeSupplyChain(supplyChain)
 		},
 	}
 
