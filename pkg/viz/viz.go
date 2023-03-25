@@ -9,6 +9,8 @@ import (
 	"github.com/goccy/go-graphviz/cgraph"
 	"github.com/vmware-tanzu/cartographer/pkg/apis/v1alpha1"
 	"golang.org/x/exp/maps"
+
+	"github.com/nickjameswebb/cartoviz/pkg/util"
 )
 
 // TODO: return a byte buffer from this function, instead of rendering directly in function
@@ -71,16 +73,15 @@ func graphSupplyChain(graph *cgraph.Graph, supplyChain *v1alpha1.ClusterSupplyCh
 
 		for _, depRef := range depResourceRefs {
 			var dep *nodeSource
-			for _, dnodesource := range nodesources {
-				if dnodesource.Resource.Name == depRef.Resource {
-					dep = dnodesource
+			for _, depNodesource := range nodesources {
+				if depNodesource.Resource.Name == depRef.Resource {
+					dep = depNodesource
 				}
 			}
 			if dep == nil {
 				return errors.New("image resource ref has no corresponding resource")
 			}
 
-			// draw edge from dep -> nodesource
 			edgeName, err := edgeNameFromResource(dep.Resource)
 			if err != nil {
 				return fmt.Errorf("error getting edge name for resource: %w", err)
@@ -110,19 +111,9 @@ func edgeNameFromResource(resource *v1alpha1.SupplyChainResource) (string, error
 
 	templateKind := resource.TemplateRef.Kind
 
-	if !contains(maps.Keys(templateKindToEdgeNameMapping), templateKind) {
+	if !util.Contains(maps.Keys(templateKindToEdgeNameMapping), templateKind) {
 		return "", errors.New("invalid template kind")
 	}
 
 	return templateKindToEdgeNameMapping[templateKind], nil
-}
-
-func contains(s []string, str string) bool {
-	for _, v := range s {
-		if v == str {
-			return true
-		}
-	}
-
-	return false
 }
