@@ -59,7 +59,7 @@ func graphSupplyChain(graph *cgraph.Graph, supplyChain *v1alpha1.ClusterSupplyCh
 
 		nodesource := &nodeSource{
 			Node:     node,
-			Resource: resource.DeepCopy(), // TODO: do we need this?
+			Resource: resource.DeepCopy(),
 		}
 
 		nodesources = append(nodesources, nodesource)
