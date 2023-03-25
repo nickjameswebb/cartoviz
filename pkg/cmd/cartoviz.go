@@ -51,7 +51,7 @@ func NewCmdViz(streams genericclioptions.IOStreams, scheme *runtime.Scheme) *cob
 			}
 
 			supplyChain := obj.(*v1alpha1.ClusterSupplyChain)
-			return viz.VisualizeSupplyChain(supplyChain)
+			return viz.GraphSupplyChain(supplyChain)
 		},
 	}
 

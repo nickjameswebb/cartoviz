@@ -16,7 +16,8 @@ import (
 // TODO: pass a context to this function
 // TODO: hide visualization behind an interface so that we can test
 // TODO: configurable filename, format
-func VisualizeSupplyChain(supplyChain *v1alpha1.ClusterSupplyChain) error {
+// TODO: wrap all errors
+func GraphSupplyChain(supplyChain *v1alpha1.ClusterSupplyChain) error {
 	if supplyChain == nil {
 		return errors.New("supply chain nil")
 	}
@@ -34,7 +35,7 @@ func VisualizeSupplyChain(supplyChain *v1alpha1.ClusterSupplyChain) error {
 		g.Close()
 	}()
 
-	err = visualize(graph, supplyChain)
+	err = graphSupplyChain(graph, supplyChain)
 	if err != nil {
 		return err
 	}
@@ -42,32 +43,122 @@ func VisualizeSupplyChain(supplyChain *v1alpha1.ClusterSupplyChain) error {
 	return g.RenderFilename(graph, graphviz.PNG, "graph.png")
 }
 
-func visualize(graph *cgraph.Graph, supplyChain *v1alpha1.ClusterSupplyChain) error {
-	var prevNode *cgraph.Node
-	var prevResource *v1alpha1.SupplyChainResource
+// Node in the tree: contains resource, all dependent resources
+// A resource can be dependent on multiple parents
+// Graph all nodes
+// Add edges between any node and all of it's dependent resources
+// Grapher takes care of the rest
 
+type nodeSource struct {
+	Node     *cgraph.Node
+	Resource *v1alpha1.SupplyChainResource
+}
+
+func graphSupplyChain(graph *cgraph.Graph, supplyChain *v1alpha1.ClusterSupplyChain) error {
+	nodesources := []*nodeSource{}
 	for _, resource := range supplyChain.Spec.Resources {
 		node, err := graph.CreateNode(resource.Name)
 		if err != nil {
 			return err
 		}
 
-		if prevNode != nil {
-			edgeName, err := edgeNameFromResource(prevResource)
-			if err != nil {
-				return fmt.Errorf("no edge name for resource: %w", err)
+		nodesource := &nodeSource{
+			Node:     node,
+			Resource: resource.DeepCopy(), // TODO: do we need this?
+		}
+
+		nodesources = append(nodesources, nodesource)
+	}
+
+	for _, nodesource := range nodesources {
+		// TODO: apply this to sources, configs
+		for _, imageResourceRef := range nodesource.Resource.Images {
+			// TODO: refactor this search into a function (generic?)
+			var dependency *nodeSource
+			for _, dnodesource := range nodesources {
+				if dnodesource.Resource.Name == imageResourceRef.Resource {
+					dependency = dnodesource
+				}
 			}
-			edge, err := graph.CreateEdge(edgeName, prevNode, node)
+			if dependency == nil {
+				return errors.New("image resource ref has no corresponding resource")
+			}
+
+			if dependency.Resource.Name == nodesource.Resource.Name {
+				return errors.New("cyclic graph, something went wrong")
+			}
+
+			// draw edge from dependency -> nodesource
+			edgeName, err := edgeNameFromResource(dependency.Resource)
+			if err != nil {
+				return fmt.Errorf("error getting edge name for resource: %w", err)
+			}
+
+			edge, err := graph.CreateEdge(edgeName, dependency.Node, nodesource.Node)
 			if err != nil {
 				return err
 			}
 			edge.SetLabel(edgeName)
 		}
 
-		prevNode = node
-		prevResource = resource.DeepCopy()
+		for _, configResourceRef := range nodesource.Resource.Configs {
+			// TODO: refactor this search into a function (generic?)
+			var dependency *nodeSource
+			for _, dnodesource := range nodesources {
+				if dnodesource.Resource.Name == configResourceRef.Resource {
+					dependency = dnodesource
+				}
+			}
+			if dependency == nil {
+				return errors.New("config resource ref has no corresponding resource")
+			}
+
+			if dependency.Resource.Name == nodesource.Resource.Name {
+				return errors.New("cyclic graph, something went wrong")
+			}
+
+			// draw edge from dependency -> nodesource
+			edgeName, err := edgeNameFromResource(dependency.Resource)
+			if err != nil {
+				return fmt.Errorf("error getting edge name for resource: %w", err)
+			}
+
+			edge, err := graph.CreateEdge(edgeName, dependency.Node, nodesource.Node)
+			if err != nil {
+				return err
+			}
+			edge.SetLabel(edgeName)
+		}
+
+		for _, sourceResourceRef := range nodesource.Resource.Sources {
+			// TODO: refactor this search into a function (generic?)
+			var dependency *nodeSource
+			for _, dnodesource := range nodesources {
+				if dnodesource.Resource.Name == sourceResourceRef.Resource {
+					dependency = dnodesource
+				}
+			}
+			if dependency == nil {
+				return errors.New("source resource ref has no corresponding resource")
+			}
+
+			if dependency.Resource.Name == nodesource.Resource.Name {
+				return errors.New("cyclic graph, something went wrong")
+			}
+
+			// draw edge from dependency -> nodesource
+			edgeName, err := edgeNameFromResource(dependency.Resource)
+			if err != nil {
+				return fmt.Errorf("error getting edge name for resource: %w", err)
+			}
+
+			edge, err := graph.CreateEdge(edgeName, dependency.Node, nodesource.Node)
+			if err != nil {
+				return err
+			}
+			edge.SetLabel(edgeName)
+		}
 	}
-	// e.SetLabel("e")
 	return nil
 }
 
