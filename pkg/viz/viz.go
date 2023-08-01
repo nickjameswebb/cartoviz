@@ -79,7 +79,7 @@ func graphSupplyChain(graph *cgraph.Graph, supplyChain *v1alpha1.ClusterSupplyCh
 				}
 			}
 			if dep == nil {
-				return errors.New("image resource ref has no corresponding resource")
+				return errors.New("resource ref has no corresponding resource")
 			}
 
 			edgeName, err := edgeNameFromResource(dep.Resource)

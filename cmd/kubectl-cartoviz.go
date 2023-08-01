@@ -19,7 +19,10 @@ func main() {
 	types.AddToScheme(scheme)
 
 	// TODO: better way to pass scheme
-	root := cmd.NewCmdViz(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}, scheme)
+	root := cmd.NewCmdViz(&cmd.CmdVizOptions{
+		IOStreams: genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr},
+		Scheme:    scheme,
+	})
 	if err := root.Execute(); err != nil {
 		// error printed by cobra, no need to do so here
 		os.Exit(1)

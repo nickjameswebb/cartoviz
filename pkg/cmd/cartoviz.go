@@ -28,7 +28,13 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
-func NewCmdViz(streams genericclioptions.IOStreams, scheme *runtime.Scheme) *cobra.Command {
+type CmdVizOptions struct {
+	genericclioptions.IOStreams
+
+	Scheme *runtime.Scheme
+}
+
+func NewCmdViz(options *CmdVizOptions) *cobra.Command {
 	configFlags := genericclioptions.NewConfigFlags(true)
 
 	cmd := &cobra.Command{
@@ -42,7 +48,7 @@ func NewCmdViz(streams genericclioptions.IOStreams, scheme *runtime.Scheme) *cob
 			builder := resource.NewBuilder(configFlags)
 
 			obj, err := builder.
-				WithScheme(scheme, scheme.PrioritizedVersionsAllGroups()...).
+				WithScheme(options.Scheme, options.Scheme.PrioritizedVersionsAllGroups()...).
 				ResourceNames("clustersupplychain", supplyChainName).
 				Do().
 				Object()
